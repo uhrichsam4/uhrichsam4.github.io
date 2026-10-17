@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=4" />
+    <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96.png?v=4" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png?v=4" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=4" />
+    <link rel="manifest" href="/site.webmanifest?v=4" />
+    <!-- Keep the layout at device width on phones. minimum-scale=1 prevents the accidental
+         zoom-out state while still allowing users to zoom in for accessibility. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+    <meta name="robots" content="index, follow" />
+    <!-- #FAFAFA is --hx-canvas (src/design/tokens.json), the ground the page actually paints. It was
+         #e8e6f5, a lavender from the palette before the 2026-09-05 restyle, so the phone's browser chrome
+         was tinted a colour that appears nowhere on the site. The script below sets the same value; this
+         static one is what a browser uses in the moment before that script runs. -->
+    <meta name="theme-color" content="#FAFAFA" />
+    <meta name="color-scheme" content="light dark" />
+
+    <!-- Apply the theme before first paint (no flash). A stored choice always wins; on a FIRST visit the
+         device's own clock decides once, and that decision is written straight back so it can never decide
+         again.
+
+         🔴 THIS RUNS HERE, NOT IN REACT, AND THAT IS THE POINT. React boots after first paint, so a night
+         visitor would watch the light theme flash white before it swapped. The auto-choice has to be made in
+         the same inline script that was already there to prevent exactly that flash.
+
+         🔴 IT IS A ONE-TIME DECISION, NOT A LIVE RULE (owner: "działa tylko na pierwszym wejściu, potem
+         zostaje ten motyw który się ustawił"). Writing the result back immediately is what makes it one-time:
+         the next load reads a stored value and takes the first branch, so the clock is never consulted again.
+         A visitor who flips the toggle is equally final, because the toggle writes the same key.
+         There is deliberately NO separate "was this automatic" flag — a second flag is a second thing that
+         can disagree with the first.
+
+         Daytime first visits are written too, even though light is already the default. Without that, someone
+         who first arrives at 14:00 has nothing stored, and their 22:00 visit would still count as a first one.
+
+         The window is 21:00-06:00 on the DEVICE clock (getHours is local time, so no timezone maths).
+         `window.__hmAutoTheme` is set ONLY when the clock actually changed something, i.e. only for dark:
+         announcing "light theme applied" when light is already the default is a notification about nothing. -->
+    <!-- 🔴 ONE THEME, 2026-09-05 (owner: "disable the light and dark mode switches and make it all one
+         theme ... theme like this esactly shades"). This script used to read localStorage and, failing
+         that, the CLOCK — dark after 21:00, light otherwise — and the auto choice announced itself through
+         window.__hmAutoTheme, which _cssblocks/t3-themetoast.css turns into a toast.
+         All of that is gone. It writes light, unconditionally, before first paint.
+         ⚠️ localStorage is not read AND NOT WRITTEN. A visitor carrying 'dark' from before today would
+         otherwise be served a dark site with no control left to leave it with.
+         ⚠️ window.__hmAutoTheme is never set now, so the theme toast can no longer fire. The CSS is left
+         in place; it simply has nothing to announce.
+         ⚠️ The other two writers of <html data-theme> are src/store.ts and src/hooks/useForcedDark.ts.
+         All three say light. Changing one alone gives a flash or a dark island. -->
+    <script>
+      (function () {
+        try {
+          document.documentElement.setAttribute('data-theme', 'light');
+          var m = document.querySelector('meta[name="theme-color"]');
+          if (m) m.setAttribute('content', '#FAFAFA');
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'light');
+        }
+      })();
+    </script>
+    <!-- 🔴 THE HOMEPAGE'S GROUND, BEFORE REACT EXISTS. Owner 2026-09-05: "remove the white loading foreced
+         scren on website load". Dropping the Suspense spinner (App.tsx) is only half of it: the fold's
+         gradient hangs off `body.hf-home`, and Home.tsx cannot add that class until the very chunk we are
+         waiting for has downloaded — so the wait would still be a white screen, just a white screen with
+         nothing on it. Stamping the class here paints the gradient on the FIRST frame, so the visitor sees
+         the finished fold and the content simply arrives into it.
+         ⚠️ `document.body` DOES NOT EXIST YET at this point in <head>, so this runs on DOMContentLoaded if
+         it has to. Both classes are set, matching Home.tsx:1820 exactly — `hx-page` alone changes the bar.
+         ⚠️ GUARDED ON THE PATH. On any other route these classes would be wrong, and Home.tsx's cleanup
+         (which removes them on unmount) never runs there because Home never mounts.
+         ⚠️ Adding a class React later adds again is a no-op, and Home.tsx's unmount cleanup still removes
+         both — so navigating away from the homepage clears this exactly as it did before. -->
+    <script>
+      (function () {
+        try {
+          if (location.pathname !== '/') return;
+          var go = function () {
+            if (document.body) document.body.classList.add('hx-page', 'hf-home');
+          };
+          if (document.body) go();
+          else document.addEventListener('DOMContentLoaded', go, { once: true });
+        } catch (e) { /* the class is an optimisation; React adds it either way */ }
+      })();
+    </script>
+
+    <!-- BLANK-PAGE GUARD. Cloudflare Pages serves index.html DYNAMIC (never edge-cached), but for ~a minute
+         after a deploy an edge can still hand out the PREVIOUS build's html while the asset manifest is already
+         the new one, so the entry chunk it names 404s. Nothing in main.tsx can catch that: if the entry module
+         404s, our JS never runs at all, and the visitor gets a white page until they reload by hand. This is the
+         "site crashed, had to reload" the owner has hit repeatedly.
+         It listens in the CAPTURE phase because a failed script load does not bubble, and reloads ONCE per
+         10 seconds (a wall-clock stamp, not a set-once flag) so a genuinely broken deploy cannot spin. The
+         reload re-requests index.html and by then the edge has the matching pair. -->
+    <script>
+      (function () {
+        window.addEventListener('error', function (e) {
+          var el = e && e.target;
+          if (!el || el.tagName !== 'SCRIPT' || !el.src || el.src.indexOf('/assets/') < 0) return;
+          try {
+            var k = 'hm_boot_reload', last = +(sessionStorage.getItem(k) || 0);
+            if (Date.now() - last < 10000) return; // already tried very recently: let the page fail visibly
+            sessionStorage.setItem(k, String(Date.now()));
+            var u = new URL(location.href);
+            u.searchParams.set('cb', String(Date.now()));
+            location.replace(u.toString());
+          } catch (_) { /* storage blocked: fail visibly rather than risk a loop */ }
+        }, true);
+      })();
+    </script>
+
+    <!-- ALL fonts are SELF-HOSTED (same-origin woff2) so the headless reel recorder loads them reliably. Google Fonts
+         loaded LAZILY (a subset only downloads once a glyph paints) via a DEFERRED media="print" link that never
+         settled in time in headless Chromium — so Sora (display) + Inter (body) fell back to a SYSTEM face in every
+         generated Model 1.5 video (the "different font than the preview" bug; measured: Sora 0/6, Inter 0/42 loaded).
+         ReelIntro = the heavy shorts-style intro caption. Inter + Sora are variable woff2 (one file per subset covers
+         every weight). Preload the latin files (what the reel + first paint need). Latin-ext keeps accented names. -->
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="/fonts/archivo-black.woff2" />
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="/fonts/inter-latin.woff2" />
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="/fonts/sora-latin.woff2" />
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="/fonts/playfair-latin.woff2" />
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="/fonts/reel-neon.woff2" />
+    <style>
+      @font-face { font-family: 'ReelIntro'; font-style: normal; font-weight: 400; font-display: block; src: url('/fonts/archivo-black.woff2') format('woff2'); }
+      @font-face { font-family: 'ReelNeon'; font-style: normal; font-weight: 800; font-display: block; src: url('/fonts/reel-neon.woff2') format('woff2'); } /* Poppins ExtraBold — Model 1.6 neon intro title (rounded heavy) */
+      /* General Sans (Fontshare, FREE FOR COMMERCIAL USE). Added 2026-09-05 for the desktop restyle.
+           🔴 NOT ppNeueMontreal. The owner's reference site serves Pangram Pangram's COMMERCIAL face from
+           its own domain; copying those files here would be a licence breach. This is the closest free
+           neighbour — same neo-grotesque voice, tight apertures. ONE variable file, axis 200-700.
+           ⚠️ THE AXIS STOPS AT 700. Anything asking for 800 clamps to 700, which is why the weight ladder
+           in src/design/tokens.json moved down a step instead of pretending 800 still exists. */
+      @font-face { font-family: 'General Sans'; font-style: normal; font-weight: 200 700; font-display: swap; src: url('/fonts/general-sans.woff2') format('woff2'); }
+      @font-face { font-family: 'Inter'; font-style: normal; font-weight: 100 900; font-display: swap; src: url('/fonts/inter-latin.woff2') format('woff2'); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
+      @font-face { font-family: 'Inter'; font-style: normal; font-weight: 100 900; font-display: swap; src: url('/fonts/inter-latin-ext.woff2') format('woff2'); unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF; }
+      @font-face { font-family: 'Sora'; font-style: normal; font-weight: 100 800; font-display: swap; src: url('/fonts/sora-latin.woff2') format('woff2'); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
+      @font-face { font-family: 'Sora'; font-style: normal; font-weight: 100 800; font-display: swap; src: url('/fonts/sora-latin-ext.woff2') format('woff2'); unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF; }
+      @font-face { font-family: 'Manrope'; font-style: normal; font-weight: 200 800; font-display: swap; src: url('/fonts/manrope-latin.woff2') format('woff2'); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
+      @font-face { font-family: 'Manrope'; font-style: normal; font-weight: 200 800; font-display: swap; src: url('/fonts/manrope-latin-ext.woff2') format('woff2'); unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF; }
+      /* Playfair Display (variable, OFL) — serif for scan/marketing headings. Self-hosted, lazy via font-display:swap. */
+      @font-face { font-family: 'Playfair Display'; font-style: normal; font-weight: 400 900; font-display: swap; src: url('/fonts/playfair-latin.woff2') format('woff2'); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
+      @font-face { font-family: 'Playfair Display'; font-style: normal; font-weight: 400 900; font-display: swap; src: url('/fonts/playfair-latin-ext.woff2') format('woff2'); unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF; }
+    </style>
+
+    <!-- ⚠️ THIS TITLE + DESCRIPTION EXIST IN THREE PLACES AND MUST STAY BYTE-IDENTICAL:
+           1. here (what a browser and most social scrapers read first)
+           2. scripts/gen-seo.mjs META['/'] (what CRAWLERS get, injected by functions/_middleware.js)
+           3. src/pages/Home.tsx useDocumentMeta(...) (what a client-side route change sets)
+         Change one, change all three. They drifted before and Google kept serving the stale line.
+         Title stays under 60 chars with the brand first (Google's site-name picker needs that); the
+         description is 138 chars. It names only the instant analysis, not The Consultation: the owner called
+         the old "or a specialist reviews it on video" line AI-slop, and bookings are locked anyway, so
+         promoting the consultation in the unfurl was both off-voice and wrong.
+         REWRITTEN 2026-08-10 (owner: the previous "Two photos, one honest read ... no cope" line "sounds so
+         bad, make it more professional"). It now runs the three-beat shape the category leaders use — what is
+         measured, what you get, what keeps you coming back. ⚠️ The numbers are OURS and are true: 64 is the
+         ratio count the whole site already states, and the four scored areas are harmony, dimorphism,
+         angularity and features. Do NOT copy the competitor's "100+ metrics" — only ~13 of our 60 feature
+         rows are actually measured from the photo, so that number would be a claim we cannot stand behind.
+         Full rationale for the earlier 2026-08-01 rewrite is in scripts/gen-seo.mjs, which is not shipped. -->
+    <title>HARDMAX | Facial Analysis: Harmony Score &amp; 64 Ratios</title>
+    <meta
+      name="description"
+      content="Analyze your face across 64 measured ratios and four scored areas, get a personalized improvement plan, and track your progress over time."
+    />
+    <link rel="canonical" href="https://hardmax.net/" />
+
+    <!-- Open Graph / social.
+         ONE card for the whole site (owner, 2026-08-02): the brand mark in a single ink, centred on white,
+         SQUARE. /og-image.png is 1200x1200 (measured, not assumed) and is built by scripts/gen-brand-marks.mjs
+         from public/icon-512.png. Declaring the real dimensions lets a scraper reserve the card before the image
+         downloads, so the preview never renders as a bare link — and because the card is square, both must say
+         1200 or an unfurler letterboxes it into a 1.91:1 slot.
+         twitter:card is `summary` (the 1:1 card), NOT summary_large_image: the large card centre-crops to 2:1
+         and would slice the top and bottom off the mark.
+         functions/_middleware.js serves this same url for every route, including /surgeons, every guide, every
+         surgeon and every celebrity page — no page carries its own card any more.
+         ⚠️ BUMP ?v= HERE AND IN functions/_middleware.js TOGETHER whenever the file changes. Unfurlers (Discord,
+         X, Slack) cache an image against its URL on their own proxy, so a constant url keeps serving the old
+         card forever even after a re-scrape. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="HARDMAX" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:title" content="HARDMAX | Facial Analysis: Harmony Score &amp; 64 Ratios" />
+    <meta
+      property="og:description"
+      content="Analyze your face across 64 measured ratios and four scored areas, get a personalized improvement plan, and track your progress over time."
+    />
+    <meta property="og:url" content="https://hardmax.net/" />
+    <meta property="og:image" content="https://hardmax.net/og-image.png?v=5" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="1200" />
+    <meta property="og:image:alt" content="The HARDMAX mark: a profile face and a bolt, in black on white" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="HARDMAX | Facial Analysis: Harmony Score &amp; 64 Ratios" />
+    <meta
+      name="twitter:description"
+      content="Analyze your face across 64 measured ratios and four scored areas, get a personalized improvement plan, and track your progress over time."
+    />
+    <meta name="twitter:image" content="https://hardmax.net/og-image.png?v=5" />
+    <meta name="twitter:image:alt" content="The HARDMAX mark: a profile face and a bolt, in black on white" />
+
+    <!-- Structured data (sitewide). Per-page Article/MedicalProcedure JSON-LD is
+         injected by the Cloudflare Pages Function (functions/_middleware.js).
+         Organization + WebSite live ONLY here (never also in the middleware): a second copy with a slightly
+         different url made Google's site-name picker fall back to the bare lowercase domain.
+         disambiguatingDescription is what an answer engine quotes when asked "what is hardmax.net", so it
+         states BOTH products and BOTH prices in one self-contained paragraph. Every number in it is checked
+         against src/data/plans.ts (premium yearly 59.99 = $5.00/mo, pro yearly 119.99 = $10.00/mo) and
+         src/data/consult.ts (SERVICE.priceUSD = 90 since 2026-09-13). Do not add aggregateRating or review counts: we have
+         no real review data, and inventing it is both a Google penalty and against the owner's rules. -->
+    <script type="application/ld+json">
+      {"@context":"https://schema.org","@type":"Organization","@id":"https://hardmax.net/#org","name":"HARDMAX","alternateName":["Hardmax","hardmax.net","HARDMAX Facial Analysis"],"url":"https://hardmax.net/","logo":"https://hardmax.net/icon-512.png","description":"HARDMAX measures your face from a front and a side photo: 64 defined ratios, four scored pillars, your harmony score and percentile, a before and after simulator and a step by step improvement plan.","disambiguatingDescription":"HARDMAX is a facial-analysis service at hardmax.net. It measures 64 facial ratios from your own photos, scores four pillars (harmony, angularity, dimorphism, features), gives your harmony score and percentile, simulates before and after, and orders an improvement plan. It is free to start, and the Basic and Pro plans run from $5.00 per month billed yearly.","knowsAbout":["Facial analysis","Facial harmony","Facial harmony score","Facial aesthetics","Facial ratios","Facial proportions","Canthal tilt","Facial thirds","Gonial angle","Facial width to height ratio","Cephalometric analysis","Looksmaxxing","Orthognathic surgery"],"sameAs":["https://discord.gg/hardmax"]}
+    </script>
+    <script type="application/ld+json">
+      {"@context":"https://schema.org","@type":"WebSite","@id":"https://hardmax.net/#website","name":"HARDMAX","alternateName":["Hardmax","hardmax.net"],"url":"https://hardmax.net/","publisher":{"@id":"https://hardmax.net/#org"}}
+    </script>
+    <script type="module" crossorigin src="/assets/index-DE25MgLR.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/react-B5xjjLRd.js">
+    <link rel="stylesheet" crossorigin href="/assets/index-DNu0PHJh.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092" integrity="sha512-UKNk8GbxkABxKcXYuLkO16EleLGUkcvJWtpSNmExE0Too3ZaFAxTscNWEc1OdAv5/BikHawapSCaiD2XCmp+Bw==" data-cf-beacon='{"version":"2024.11.0","token":"c056c63a2dd34e9f8b943807d7b59a65","r":1,"spa":2}' crossorigin="anonymous"></script>
+</body>
+</html>

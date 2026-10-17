@@ -1,0 +1,30 @@
+{
+  "name": "SAM I AM LABS",
+  "short_name": "SAM I AM LABS",
+  "description": "Facial ratio and harmony analysis \u2014 64 ratios scored against research-grade ideals.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "browser",
+  "background_color": "#0d1722",
+  "theme_color": "#0d1722",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
