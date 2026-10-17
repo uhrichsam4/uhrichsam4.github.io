@@ -7,6 +7,11 @@
   'use strict';
 
   var ORIGIN = 'https://hardmax.net';
+  // Analytics beacons have nowhere to go in a fully static build.
+  try {
+    if (navigator.sendBeacon) navigator.sendBeacon = function () { return true; };
+  } catch (e) {}
+
   var SCANS_KEY = 'sia.scans.v1';
   var PHOTO_PREFIX = 'sia.photo.';
   var MAX_PHOTO_CHARS = 600000;

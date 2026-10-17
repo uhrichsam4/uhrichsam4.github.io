@@ -5,13 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>SAM I AM LABS</title>
     <script>
-      try {
-        var u = new URL(location.href);
-        if (u.pathname !== '/') u.pathname = '/';
-        location.replace(u.toString());
-      } catch (e) {
-        location.replace('/');
-      }
+      (function () {
+        var l = location;
+        var path = l.pathname + l.search + l.hash;
+        l.replace('/?__spa=' + encodeURIComponent(path));
+      })();
     </script>
   </head>
   <body>

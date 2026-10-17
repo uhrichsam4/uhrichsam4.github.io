@@ -208,6 +208,12 @@
     <script type="application/ld+json">
       {"@context":"https://schema.org","@type":"WebSite","@id":"https://hardmax.net/#website","name":"SAM I AM LABS","alternateName":["Hardmax","hardmax.net"],"url":"https://hardmax.net/","publisher":{"@id":"https://hardmax.net/#org"}}
     </script>
+    <script>
+  (function () {
+    var m = location.search.match(/[?&]__spa=([^&]+)/);
+    if (m) { try { history.replaceState(null, '', decodeURIComponent(m[1])); } catch (e) {} }
+  })();
+</script>
     <script src="/static-api.js"></script>
     <script src="/faceiq-ui.js"></script>
     <script type="module" crossorigin src="/assets/index-DE25MgLR.js"></script>
